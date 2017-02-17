@@ -32,4 +32,4 @@
 *.dSYM/
 *.su
 # program logs
-log.txt
+*log.txt
