@@ -1,7 +1,6 @@
 2016-12-06 15:11:37, The Script has been running at Huawei-OLT: (172.16.90.138)
 2016-12-06 15:11:47, The Script has been running at Huawei-OLT: (172.16.90.138)
 2016-12-06 15:14:08, The Script has been running at Huawei-OLT: (172.16.90.138)
-2016-12-06 15:14:56, The Script has been running at Huawei-OLT: (172.16.90.138)
 2016-12-06 15:20:05, The Script has been running at Huawei-OLT: (172.16.90.138)
 2016-12-06 15:20:16, Huawei-OLT: DYGD_MA5680T(172.16.90.138)  add an ONT : 0/5/7, sn_number: 4857544374692E75
 2016-12-06 15:20:43, Huawei-OLT: DYGD_MA5680T(172.16.90.138)  add an ONT : 4857544374692E75, sn_number: 4857544374692E75
