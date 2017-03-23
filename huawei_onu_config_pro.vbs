@@ -101,9 +101,9 @@ Sub main()
 			'下面的代码功能获取SN号
 			'Ont SN              : 4857544374692E75"
 			str1 = Split(strLines(3), ":")
-			'str1(1) = "4857544374692E75"
+			'str1(1) = "4857544374692E75  sdfdf"
 			sn_number = Trim(str1(1))
-	
+			sn_number = left(sn_number,16)
 			'下面的代码的功能是通过截取命令结果分析出该 Pon 口下最后一个ONU的编号
 			REM str1 = Split(epon_num, "/")
 			REM objCurrentTab.Screen.Synchronous = True
