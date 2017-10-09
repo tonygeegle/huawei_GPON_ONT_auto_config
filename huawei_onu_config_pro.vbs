@@ -73,7 +73,10 @@ Sub main()
 		objCurrentTab.Screen.Synchronous = True
 		objCurrentTab.Screen.Send "display ont autofind all" & vbcr
 		objCurrentTab.Screen.waitForString vbcr
-		strResult = crt.Screen.ReadString(strPrompt)
+		'防止出现多个ONT同时上线
+		strResult = objCurrentTab.Screen.ReadString("---- More ( Press 'Q' to break ) ----", strPrompt)
+		If objCurrentTab.Screen.MatchIndex = 1 Then crt.Screen.Send "Q" & chr(13)
+		
 		objCurrentTab.Screen.Synchronous = false
 		REM ------------------------------------------------------------------------
 		REM Number              : 1
@@ -90,48 +93,21 @@ Sub main()
 		REM ------------------------------------------------------------------------
 		REM The number of GPON autofind ONT is 1
 		if Instr(strResult, "Ont autofind time") then 
-			'下面的代码功能是返回的结果进行分行
-			strLines = Split(strResult, vbcrlf)
-			
-			'下面的代码功能获取Pon口号
-			'strLines(2) = "F/S/P               : 0/5/7"
-			str1 = Split(strLines(2), ":")
-			'str1(1) = " 0/5/7"
-			epon_num = Trim(str1(1))
-			'下面的代码功能获取SN号
-			'Ont SN              : 4857544374692E75"
-			str1 = Split(strLines(3), ":")
-			'str1(1) = "4857544374692E75  sdfdf"
-			sn_number = Trim(str1(1))
-			sn_number = left(sn_number,16)
-			'下面的代码的功能是通过截取命令结果分析出该 Pon 口下最后一个ONU的编号
-			REM str1 = Split(epon_num, "/")
-			REM objCurrentTab.Screen.Synchronous = True
-			REM objCurrentTab.Screen.Send "display ont info " & str1(0) & " " & str1(1) & " " & str1(2) & " all" &chr(13) 
-			REM objCurrentTab.Screen.waitForString vbcr
-			
-			REM strCompleteOutput = ""
-			REM Do
-				REM strResult = crt.Screen.ReadString("---- More ( Press 'Q' to break ) ----", strPrompt)
-				REM strCompleteOutput = strCompleteOutput & strResult
-				REM If crt.Screen.MatchIndex = 1 Then crt.Screen.Send " "
-				REM If crt.Screen.MatchIndex = 2 Then Exit Do
-			REM Loop
-			
-			REM objCurrentTab.Screen.Synchronous = false
-			
-			REM Set re = New RegExp
-			REM re.Pattern = "ONTs are:\s+(\d+),"
-
-			REM If re.Test(strCompleteOutput) <> True Then
-				REM last_num = 0
-			REM Else
-				REM Set matches = re.Execute(strResults)
-				REM last_num = matches(0).SubMatches(0)
-			REM End If
-			
+			re.Pattern = "F/S/P\s+:\s(\d/\d+/\d+)[\s\S]{5,30}:\s([0-9A-F]{16})"
+			'用正则表达式提出gpon_num和ont_num
+			If re.Test(strResult) <> True Then
+				MsgBox "异常错误！"
+				crt.quit
+			Else
+				Set matches = re.Execute(strResult)
+				For Each match In matches
+					gpon_num = match.SubMatches(0)
+					sn_number = match.SubMatches(1)
+					exit for
+				Next
+			End If
 			'配置ONU的所有必要参数都获取到啦，接下来就调用一个Sub就OK啦
-			config_huawei_ONU epon_num, sn_number, cvlan2, cvlan1
+			config_huawei_ONU gpon_num, sn_number, cvlan2, cvlan1
 			
 		end if
 		
@@ -308,73 +284,71 @@ Sub config_huawei_ONU(epon_num, sn_number, cvlan2, cvlan1)
 
 End Sub
 
-
 'sn-auth 4857544374692E75
 '在#号模式下 删除onu 以及相应的service,
 Sub delete_huawei_ONU(sn_number)
 	'----------下面代码查找 ont pon 口 和序号信息----------
 	'查找ont pon 口 和序号信息
 	objCurrentTab.Screen.Synchronous = True
-	objCurrentTab.Screen.Send "display ont info 0 all" &chr(13) 
+	objCurrentTab.Screen.Send "display ont info by-sn " & sn_number & chr(13) 
 	objCurrentTab.Screen.waitForString vbcr
-			
-	strCompleteOutput = ""
-	Do
-		strResult = objCurrentTab.Screen.ReadString("---- More ( Press 'Q' to break ) ----", strPrompt)
-		strCompleteOutput = strCompleteOutput & strResult
-		If objCurrentTab.Screen.MatchIndex = 1 Then crt.Screen.Send " "
-		If objCurrentTab.Screen.MatchIndex = 2 Then Exit Do
-	Loop
-			
-	objCurrentTab.Screen.Synchronous = false
 
-	re.Pattern = "(\d/\s\d+/\d+)\s+(\d+)\s+" & sn_number
+	strResult = objCurrentTab.Screen.ReadString("---- More ( Press 'Q' to break ) ----")	
+	objCurrentTab.Screen.Send "Q" & chr(13) 
+	objCurrentTab.Screen.waitForString vbcr
+	objCurrentTab.Screen.Synchronous = false
+	' -----------------------------------------------------------------------------
+	' F/S/P                   : 0/5/7
+	' ONT-ID                  : 2
+	' Control flag            : active
+	' Run state               : online
+	' Config state            : normal
+	' Match state             : match
+	' DBA type                : SR
+	' ONT distance(m)         : 5
+	' ONT battery state       : not support
+	' Memory occupation       : 13%
+	' CPU occupation          : 1%
+	' Temperature             : 50(C)
+	' Authentic type          : SN-auth
+	' SN                      : 4857544374692E75 (HWTC-74692E75)
+	' Management mode         : OMCI
+	' Software work mode      : normal
+	' Isolation state         : normal
+	' Description             : 4857544374692E75
+	' Last down cause         : -
+	' Last up time            : 2017-10-09 21:03:44+08:00
+	' Last down time          : -
+	' Last dying gasp time    : -
+                                   
+
+	' DYGD_MA5680T#
+	re.Pattern = "F/S/P\s+:\s(\d/\d+/\d+)[\s\S]{5,30}:\s(\d+)"
 	'用正则表达式提出gpon_num和ont_num
-	If re.Test(strCompleteOutput) <> True Then
+	If re.Test(strResult) <> True Then
 		MsgBox "异常错误！"
 		crt.quit
 	Else
-		Set matches = re.Execute(strCompleteOutput)
+		Set matches = re.Execute(strResult)
 		For Each match In matches
 			gpon_num = match.SubMatches(0)
 			ont_num = match.SubMatches(1)
 			exit for
 		Next
 	End If
-	'--------------下面代码执行查找并删除service-port 命令------------
-	'查询 service-port 信息
-	'0/ 3/2
-	str1 = Split(gpon_num, "/")
+	'--------------下面代码执行删除service-port 命令------------
 	objCurrentTab.Screen.Synchronous = True
-	objCurrentTab.Screen.Send "display service-port board " & str1(0) &  "/" & str1(1) &" sort-by port" &chr(13) 
-	objCurrentTab.Screen.waitForString vbcr
-			
-	strCompleteOutput = ""
-	Do
-		strResult = objCurrentTab.Screen.ReadString("---- More ( Press 'Q' to break ) ----", strPrompt)
-		strCompleteOutput = strCompleteOutput & strResult
-		If objCurrentTab.Screen.MatchIndex = 1 Then crt.Screen.Send " "
-		If objCurrentTab.Screen.MatchIndex = 2 Then Exit Do
-	Loop
 	objCurrentTab.Screen.Send "config" & vbcr
-	objCurrentTab.Screen.WaitForString "#"		
-	'  1066 1100 stacking gpon 0/5 /8  3     2     vlan  1000       -    -    up
-	re.Pattern = "\s+(\d+).*" & trim(str1(0)) &  "/" & trim(str1(1)) & "\s*/" & trim(str1(2)) & "\s+" & ont_num
-	'用正则表达式提出gpon_num和ont_num
-	If re.Test(strCompleteOutput) <> True Then
-		'MsgBox "异常错误！"
-		'crt.quit
-	Else
-		Set matches = re.Execute(strCompleteOutput)
-		For Each match In matches
-			service_num = match.SubMatches(0)
-			'执行删除 service-port 命令
-			objCurrentTab.Screen.Send "undo service-port " & service_num & chr(13)
-			objCurrentTab.Screen.waitForString "#"
-		Next
-	End If
+	objCurrentTab.Screen.WaitForString "#"
+	objCurrentTab.Screen.Send "undo service-port port " & gpon_num & " ont " & ont_num & chr(13)
+	objCurrentTab.Screen.waitForString "{ <cr>|gemport<K> }:"
+	objCurrentTab.Screen.Send vbcr
+	objCurrentTab.Screen.WaitForString "Are you sure to release service virtual port(s)? (y/n)[n]:"
+	objCurrentTab.Screen.Send "y" & chr(13)
+	objCurrentTab.Screen.WaitForString "#"
 	'----------下面代码执行ONU ETH口的native-vlan修改成默认的VLAN 1操作---------
 	'在config模式下进入  gpon ,
+	str1 = Split(gpon_num, "/")
 	objCurrentTab.Screen.Send "interface gpon " & str1(0) & "/" & str1(1) & vbcr
 	objCurrentTab.Screen.WaitForString "#"
 	'ont port native-vlan 7 2 eth 1 vlan 1
